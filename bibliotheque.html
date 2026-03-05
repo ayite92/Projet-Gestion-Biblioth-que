@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliothèque Etudiant – Système de Gestion</title>
+    <link rel="stylesheet" href="bibliotheque.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body data-role="student" data-theme="light">
+
+    <div class="loader-overlay" id="loaderOverlay">
+        <div class="loader-logo"><i class="fas fa-book-open"></i></div>
+        <div class="loader-text">Chargement en cours…</div>
+    </div>
+
+    <section class="auth-gateway" id="authGateway">
+        <div class="auth-card">
+            <div class="auth-clock" id="authClock">--:--:--</div>
+            <div class="auth-brand">
+                <div class="logo-icon-wrap"><i class="fas fa-book-open"></i></div>
+                <div>
+                    <h2>gestionBibliothèque</h2>
+                    <p>Connexion requise pour accéder à la plateforme</p>
+                </div>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-auth-tab="login">Connexion</button>
+                <button class="auth-tab" data-auth-tab="register">Inscription</button>
+            </div>
+
+            <form id="loginForm" class="auth-form active">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input class="form-input" id="loginEmail" type="email" placeholder="..........@esgis.org" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mot de passe</label>
+                    <input class="form-input" id="loginPassword" type="password" placeholder="Votre mot de passe" required>
+                </div>
+                <button class="btn-modal-primary auth-submit" type="submit">
+                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                </button>
+                <p class="auth-help">Compte démo: <strong>demo@esgis.org</strong> / <strong>demo1234</strong></p>
+            </form>
+
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label class="form-label">Nom complet</label>
+                    <input class="form-input" id="registerName" type="text" placeholder="Votre nom (optionnel)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type d'adhérent</label>
+                    <select class="form-select" id="registerMemberType">
+                        <option value="etudiant">Étudiant</option>
+                        <option value="enseignant">Enseignant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input class="form-input" id="registerEmail" type="email" placeholder="..........@esgis.org" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mot de passe</label>
+                    <input class="form-input" id="registerPassword" type="password" placeholder="Minimum 6 caractères" required>
+                </div>
+                <button class="btn-modal-primary auth-submit" type="submit">
+                    <i class="fas fa-user-plus"></i> Créer un compte adhérent
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <div class="login-success-overlay hidden" id="loginSuccessOverlay">
+        <div class="login-success-box">
+            <div class="login-success-icon"><i class="fas fa-check-circle"></i></div>
+            <h3 id="loginSuccessTitle">Bienvenue</h3>
+            <p>Connexion validée, chargement de votre espace…</p>
+        </div>
+    </div>
+
+    <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon-wrap"><i class="fas fa-book-open"></i></div>
+            <div class="logo-texts">
+                <h1>gestionBibliothèque</h1>
+                <p>Universitaire</p>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <span class="nav-section-label">Navigation</span>
+            <ul>
+                <li class="nav-item"><a href="#dashboard" class="active" data-section-link="dashboard"><span class="nav-icon"><i class="fas fa-th-large"></i></span>Tableau de bord</a></li>
+                <li class="nav-item"><a href="#catalogue" data-section-link="catalogue"><span class="nav-icon"><i class="fas fa-book"></i></span>Catalogue</a></li>
+                <li class="nav-item"><a href="#etudiants" data-section-link="etudiants"><span class="nav-icon"><i class="fas fa-user-graduate"></i></span>Étudiants</a></li>
+                <li class="nav-item"><a href="#reservations" data-section-link="reservations" data-admin-only="true"><span class="nav-icon"><i class="fas fa-bookmark"></i></span>Réservations</a></li>
+                <li class="nav-item"><a href="#emprunts" data-section-link="emprunts"><span class="nav-icon"><i class="fas fa-hand-holding"></i></span>Emprunts<span class="nav-badge" id="loanBadgeNav">0</span></a></li>
+            </ul>
+
+            <span class="nav-section-label" style="margin-top:12px;">Outils</span>
+            <ul>
+                <li class="nav-item"><a href="#statistiques" data-section-link="statistiques"><span class="nav-icon"><i class="fas fa-chart-pie"></i></span>Statistiques</a></li>
+                <li class="nav-item"><a href="#notifications" data-section-link="notifications"><span class="nav-icon"><i class="fas fa-bell"></i></span>Notifications<span class="nav-badge" id="notifBadgeNav">5</span></a></li>
+                <li class="nav-item"><a href="#parametres" data-section-link="parametres"><span class="nav-icon"><i class="fas fa-cog"></i></span>Paramètres</a></li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-user">
+            <div class="user-av" id="userInitials">AD</div>
+            <div class="user-meta">
+                <strong id="userDisplayName">Espace adhérent</strong>
+                <span id="userDisplayRole">Étudiant</span>
+            </div>
+            <button class="logout-btn" id="logoutBtn" title="Déconnexion"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir la navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+            <span class="topbar-clock" id="topbarClock">--:--:--</span>
+
+            <div class="topbar-search">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" placeholder="Recherche rapide…" id="quickSearch">
+            </div>
+
+            <div class="topbar-actions">
+                <span class="topbar-clock-desktop" id="topbarClockDesktop">--:--:--</span>
+                <span class="role-pill" id="rolePill">Espace adhérent</span>
+                <button class="btn-secondary" id="adminAccessBtn"><i class="fas fa-shield-alt"></i> Accès administrateur</button>
+                <button class="btn-secondary hidden" id="studentBackBtn"><i class="fas fa-user-graduate"></i> Retour étudiant</button>
+                <button class="topbar-btn" title="Activer le mode nuit" id="themeToggleBtn" aria-label="Basculer le thème" aria-pressed="false">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="topbar-btn" title="Notifications" id="topbarNotifBtn">
+                    <i class="fas fa-bell"></i>
+                    <span class="topbar-notif-dot"></span>
+                </button>
+                <button class="topbar-btn" title="Messages" id="topbarMsgBtn">
+                    <i class="fas fa-envelope"></i>
+                </button>
+                <button class="btn-primary" id="openLoanBtn" data-admin-only="true">
+                    <i class="fas fa-plus"></i>
+                    Nouvel emprunt
+                </button>
+            </div>
+        </div>
+
+        <main class="page-body">
+            <section id="dashboardSection" class="app-section active">
+                <section class="page-hero animate-up">
+                    <div class="hero-inner">
+                        <div class="hero-eyebrow">
+                            <i class="fas fa-circle" style="font-size:7px;color:var(--accent)"></i>
+                            Tableau de bord – Bibliothèque Universitaire
+                        </div>
+                        <h2>Bienvenue,&nbsp;<span id="welcomeRole" style="color:var(--accent)">Étudiant</span></h2>
+                        <p>Consultez le catalogue, réservez des livres et suivez vos emprunts depuis votre espace adhérent.</p>
+                        <div class="hero-stats-row">
+                            <div class="h-stat"><span class="h-stat-num" id="heroBooksCount">0</span><span class="h-stat-lbl">Livres</span></div>
+                            <div class="h-stat-divider"></div>
+                            <div class="h-stat"><span class="h-stat-num" id="heroStudentsCount">0</span><span class="h-stat-lbl">Étudiants</span></div>
+                            <div class="h-stat-divider"></div>
+                            <div class="h-stat"><span class="h-stat-num" id="heroLoansCount">0</span><span class="h-stat-lbl">Emprunts</span></div>
+                            <div class="h-stat-divider"></div>
+                            <div class="h-stat"><span class="h-stat-num" id="heroCategoriesCount">0</span><span class="h-stat-lbl">Catégories</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card kpi-blue animate-up delay-1"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-book"></i></div><div class="kpi-trend warn" id="kpiBooksTrend">Temps réel</div></div><div class="kpi-val" id="kpiBooksTotal">0</div><div class="kpi-label">Livres disponibles</div></div>
+                    <div class="kpi-card kpi-orange animate-up delay-2"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="kpi-trend warn" id="kpiStudentsTrend">Temps réel</div></div><div class="kpi-val" id="kpiStudentsTotal">0</div><div class="kpi-label">Étudiants inscrits</div></div>
+                    <div class="kpi-card kpi-blue animate-up delay-2"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="kpi-trend warn" id="kpiTeachersTrend">Temps réel</div></div><div class="kpi-val" id="kpiTeachersTotal">0</div><div class="kpi-label">Enseignants inscrits</div></div>
+                    <div class="kpi-card kpi-green animate-up delay-3"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-hand-holding"></i></div><div class="kpi-trend warn" id="kpiLoansCurrentTrend">Temps réel</div></div><div class="kpi-val" id="kpiLoansCurrent">0</div><div class="kpi-label">Emprunts en cours</div></div>
+                    <div class="kpi-card kpi-purple animate-up delay-4"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-trend warn" id="kpiLoansLateTrend">Temps réel</div></div><div class="kpi-val" id="kpiLoansLate">0</div><div class="kpi-label">Emprunts en retard</div></div>
+                </div>
+
+                <div class="search-section-full animate-up delay-2" id="searchCatalog">
+                    <h3 class="search-full-title">Rechercher un livre ou un document</h3>
+                    <div class="search-row">
+                        <div class="search-field-wrap">
+                            <i class="fas fa-search search-field-icon"></i>
+                            <input type="text" class="search-field" placeholder="Titre, auteur, ISBN, mot-clé…" id="advSearch">
+                        </div>
+                        <button class="btn-search" id="advSearchBtn"><i class="fas fa-search"></i> Rechercher</button>
+                    </div>
+                    <div class="filter-chips">
+                        <button type="button" class="chip active" data-category="tous"><i class="fas fa-layer-group"></i> Tous</button>
+                        <button type="button" class="chip" data-category="informatique"><i class="fas fa-laptop-code"></i> Informatique</button>
+                        <button type="button" class="chip" data-category="mathematiques"><i class="fas fa-calculator"></i> Mathématiques</button>
+                        <button type="button" class="chip" data-category="sciences"><i class="fas fa-flask"></i> Sciences</button>
+                        <button type="button" class="chip" data-category="litterature"><i class="fas fa-book"></i> Littérature</button>
+                        <button type="button" class="chip" data-category="histoire"><i class="fas fa-globe"></i> Histoire</button>
+                        <button type="button" class="chip" data-category="physique"><i class="fas fa-atom"></i> Physique</button>
+                    </div>
+                </div>
+
+                <div class="content-row">
+                    <div class="card animate-up delay-2">
+                        <div class="card-header">
+                            <div><div class="card-title">Livres populaires</div><div class="card-subtitle">Emprunts les plus fréquents ce mois</div></div>
+                            <a href="#catalogue" class="card-link" data-section-link="catalogue">Voir tout <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div class="book-list" id="bookListDashboard">
+                        </div>
+                    </div>
+
+                    <div class="card animate-up delay-3">
+                        <div class="card-header">
+                            <div><div class="card-title">Emprunts récents</div><div class="card-subtitle">Dernières transactions enregistrées</div></div>
+                            <a href="#emprunts" class="card-link" data-section-link="emprunts">Voir tout <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div class="loans-table-wrap">
+                            <table class="loans-table">
+                                <thead><tr><th>Étudiant</th><th>Livre</th><th>Retour prévu</th><th>Statut</th><th>Action</th></tr></thead>
+                                <tbody id="dashboardLoansBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card student-ops-card" data-student-only="true">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Mes réservations et emprunts</div>
+                            <div class="card-subtitle">Suivi des réservations, emprunts, retours et sanctions</div>
+                        </div>
+                    </div>
+                    <div class="loans-table-wrap">
+                        <table class="loans-table student-ops-table">
+                            <thead>
+                                <tr>
+                                    <th>Livre</th>
+                                    <th>Statut</th>
+                                    <th>Jour réservation</th>
+                                    <th>Jour récupération</th>
+                                    <th>Date emprunt</th>
+                                    <th>Retour prévu</th>
+                                    <th>Retour effectif</th>
+                                    <th>Sanctions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentOpsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="categories-section animate-up delay-3">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+                        <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;">Explorer par catégorie</h3>
+                        <a href="#catalogue" class="card-link" style="font-size:13px;color:var(--accent);" data-section-link="catalogue">Voir toutes <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <div class="categories-grid" id="dashboardCategoriesGrid">
+                        <button type="button" class="cat-card c1 cat-card-btn"><div class="cat-icon-wrap"><i class="fas fa-book"></i></div><div class="cat-name">Chargement…</div><div class="cat-count">0 livre</div></button>
+                    </div>
+                </div>
+
+                <div class="students-row animate-up delay-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <div><div class="card-title">Nouveaux étudiants</div><div class="card-subtitle">Derniers inscrits ce mois</div></div>
+                            <a href="#etudiants" class="card-link" data-section-link="etudiants">Voir tout <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div id="dashboardRecentStudents">
+                            <div class="student-list-item"><div class="s-av sa1">--</div><div class="s-info"><div class="s-name">Chargement...</div><div class="s-dept"><i class="fas fa-graduation-cap"></i> Mise à jour en cours</div></div><div class="s-loans-count"><i class="fas fa-book"></i> 0</div></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div><div class="card-title">Activité des emprunts</div><div class="card-subtitle">7 derniers mois</div></div>
+                            <a href="#statistiques" class="card-link" data-section-link="statistiques">Rapport <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <div class="mini-chart">
+                            <div class="mini-chart-label">
+                                <span>Emprunts mensuels</span>
+                                <span style="display:flex;gap:14px;">
+                                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--primary);display:inline-block;"></span> Emprunts</span>
+                                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block;"></span> Retours</span>
+                                </span>
+                            </div>
+                            <div class="chart-bars" id="chartBars"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="catalogueSection" class="app-section">
+                <div class="card">
+                    <div class="card-header">
+                        <div><div class="card-title">Catalogue complet</div><div class="card-subtitle">Liste des ouvrages disponibles et disponibilité</div></div>
+                        <button class="btn-primary" data-admin-only="true" id="addBookBtn"><i class="fas fa-book-medical"></i> Ajouter livre</button>
+                    </div>
+                    <div class="loans-table-wrap">
+                        <table class="loans-table">
+                            <thead><tr><th>Titre</th><th>Auteur</th><th>Catégorie</th><th>Stock</th><th>Action</th></tr></thead>
+                            <tbody id="catalogueTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="etudiantsSection" class="app-section">
+                <div class="card">
+                    <div class="card-header">
+                        <div><div class="card-title">Gestion des étudiants</div><div class="card-subtitle">L'administrateur peut supprimer des comptes étudiants</div></div>
+                        <button class="btn-primary" data-admin-only="true" id="addStudentBtn"><i class="fas fa-user-plus"></i> Ajouter étudiant</button>
+                    </div>
+                    <div class="permission-note">En mode étudiant, les actions de suppression et d'administration sont désactivées.</div>
+                    <div class="loans-table-wrap">
+                        <table class="loans-table" id="studentsTable">
+                            <thead><tr><th>Nom</th><th>Matricule</th><th>Filière</th><th>Emprunts</th><th>Actions</th></tr></thead>
+                            <tbody id="studentsTableBody">
+                                <tr><td>Marie Dupont</td><td>IN2024-001</td><td>Informatique L3</td><td>3</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Marie Dupont"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Marie Dupont"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
+                                <tr><td>Pierre Martin</td><td>MA2024-045</td><td>Mathématiques M1</td><td>1</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Pierre Martin"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Pierre Martin"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
+                                <tr><td>Sophie Bernard</td><td>PH2024-023</td><td>Physique L2</td><td>2</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Sophie Bernard"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Sophie Bernard"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reservationsSection" class="app-section">
+                <div class="card admin-reservations-panel">
+                    <div class="card-header">
+                        <div><div class="card-title">Réservations étudiantes</div><div class="card-subtitle">Demandes de réservation à convertir en emprunts</div></div>
+                    </div>
+                    <div class="loans-table-wrap">
+                        <table class="loans-table">
+                            <thead><tr><th>Étudiant</th><th>Email</th><th>Livre</th><th>Date réservation</th><th>Disponibilité</th><th>Action</th></tr></thead>
+                            <tbody id="reservationsManagementBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="empruntsSection" class="app-section">
+                <div class="card">
+                    <div class="card-header">
+                        <div><div class="card-title">Gestion des emprunts</div><div class="card-subtitle">Suivi des emprunts en cours, retards et retours</div></div>
+                        <button class="btn-primary" data-admin-only="true" data-open-modal="loan"><i class="fas fa-plus"></i> Nouvel emprunt</button>
+                    </div>
+                    <div class="loans-table-wrap">
+                        <table class="loans-table">
+                            <thead><tr><th>Étudiant</th><th>Livre</th><th>Date emprunt</th><th>Retour prévu</th><th>Statut</th><th>Action</th></tr></thead>
+                            <tbody id="loansManagementBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="statistiquesSection" class="app-section">
+                <div class="kpi-grid">
+                    <div class="kpi-card kpi-blue"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-book-reader"></i></div><div class="kpi-trend warn" id="statsLoansTrend">Temps réel</div></div><div class="kpi-val" id="statsLoansMonth">0</div><div class="kpi-label">Prêts ce mois</div></div>
+                    <div class="kpi-card kpi-orange"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-user-clock"></i></div><div class="kpi-trend warn" id="statsLateTrend">Temps réel</div></div><div class="kpi-val" id="statsLateLoans">0</div><div class="kpi-label">Retards</div></div>
+                    <div class="kpi-card kpi-green"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-undo"></i></div><div class="kpi-trend warn" id="statsReturnsTrend">Temps réel</div></div><div class="kpi-val" id="statsReturnsMonth">0</div><div class="kpi-label">Retours</div></div>
+                    <div class="kpi-card kpi-purple"><div class="kpi-top"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="kpi-trend warn" id="statsActiveTrend">Temps réel</div></div><div class="kpi-val" id="statsActiveStudents">0</div><div class="kpi-label">Étudiants actifs</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><div><div class="card-title">Évolution mensuelle</div><div class="card-subtitle">Comparaison emprunts / retours</div></div></div>
+                    <div class="mini-chart"><div class="chart-bars" id="chartBarsStats"></div></div>
+                </div>
+            </section>
+
+            <section id="notificationsSection" class="app-section">
+                <div class="card">
+                    <div class="card-header">
+                        <div><div class="card-title">Notifications</div><div class="card-subtitle">Alertes opérationnelles de la bibliothèque</div></div>
+                        <button class="btn-secondary" id="markAllReadBtn"><i class="fas fa-check-double"></i> Tout marquer comme lu</button>
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                        <div class="notification-item unread"><div><strong>Retour en retard</strong><p>Sophie Bernard dépasse de 11 jours.</p></div><button class="btn-secondary" data-mark-read="true">Marquer lu</button></div>
+                        <div class="notification-item unread"><div><strong>Stock faible</strong><p>Physique quantique est indisponible.</p></div><button class="btn-secondary" data-mark-read="true">Marquer lu</button></div>
+                        <div class="notification-item"><div><strong>Nouveau compte étudiant</strong><p>Clara Roux a été ajoutée.</p></div><span class="status-pill retourne">Lu</span></div>
+                        <div class="notification-item"><div><strong>Rapport hebdomadaire</strong><p>Le rapport de fréquentation est prêt.</p></div><span class="status-pill retourne">Lu</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="parametresSection" class="app-section">
+                <div class="card">
+                    <div class="card-header"><div><div class="card-title">Paramètres système</div><div class="card-subtitle">Gestion du profil et des règles métier</div></div></div>
+                    <div class="settings-grid">
+                        <div class="form-group"><label class="form-label">Nom utilisateur</label><input type="text" class="form-input" id="settingsName" value="Admin Biblio"></div>
+                        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="settingsEmail" value="email.bibliotheque@esgis.org"></div>
+                        <div class="form-group"><label class="form-label">Durée max emprunt (jours)</label><input type="number" class="form-input" id="settingsLoanDays" value="30" min="1" max="60" data-admin-only="true"></div>
+                        <div class="form-group"><label class="form-label">Pénalité journalière (€)</label><input type="number" class="form-input" id="settingsPenalty" value="1" min="0" step="0.5" data-admin-only="true"></div>
+                        <div class="form-group"><label class="form-label">Quota max emprunts actifs</label><input type="number" class="form-input" id="settingsLoanQuota" value="3" min="1" max="20" data-admin-only="true"></div>
+                    </div>
+                    <div class="info-box"><i class="fas fa-info-circle"></i>Nom et email sont personnels et modifiables à tout moment.</div>
+                    <div class="modal-foot" style="padding-left:0;padding-right:0;border-top:none;"><button class="btn-modal-primary" id="saveSettingsBtn"><i class="fas fa-save"></i> Enregistrer les paramètres</button></div>
+                </div>
+            </section>
+
+            <footer class="footer">
+                <div class="footer-grid">
+                    <div class="footer-col">
+                        <h4>Développeurs</h4>
+                        <button type="button" class="footer-dev-trigger" data-open-modal="devTeam">
+                            Voir l'équipe</i>
+                        </button>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Liens utiles</h4>
+                        <ul>
+                            <li><a href="#catalogue" data-section-link="catalogue"><i class="fas fa-chevron-right"></i> Catalogue en ligne</a></li>
+                            <li><a href="#statistiques" data-section-link="statistiques"><i class="fas fa-chevron-right"></i> Ressources numériques</a></li>
+                            <li><a href="#etudiants" data-section-link="etudiants"><i class="fas fa-chevron-right"></i> Espace personnel</a></li>
+                            <li><a href="#dashboard" data-section-link="dashboard"><i class="fas fa-chevron-right"></i> Tableau de bord</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Contact</h4>
+                        <ul>
+                            <li><span><i class="fas fa-map-marker-alt"></i>ESGIS <br>Ecole Supérieur de Gestion D'informatique et Des Sciences</span></li>
+                            <li><span><i class="fas fa-phone"></i>+228 22 50 60 60</span></li>
+                            <li><span><i class="fas fa-envelope"></i>esgis.togo@esgis.org</span></li>
+                            <li><span><i class="fas fa-clock"></i> Lun–Ven : 8h–20h | Sam : 8h–17h</span></li>
+                        </ul>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Réseaux sociaux</h4>
+                        <ul>
+                            <li><a href="#notifications" data-toast-title="Réseau social" data-toast-msg="Ouverture Facebook"><i class="fab fa-facebook"></i> Facebook</a></li>
+                            <li><a href="#notifications" data-toast-title="Réseau social" data-toast-msg="Ouverture Twitter / X"><i class="fab fa-twitter"></i> Twitter / X</a></li>
+                            <li><a href="#notifications" data-toast-title="Réseau social" data-toast-msg="Ouverture Instagram"><i class="fab fa-instagram"></i> Instagram</a></li>
+                            <li><a href="#notifications" data-toast-title="Réseau social" data-toast-msg="Ouverture LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 Bibliothèque Universitaire – Tous droits réservés</p>
+                    <p style="margin-top:8px;"><a href="#parametres" data-section-link="parametres">Mentions légales</a> | <a href="#parametres" data-section-link="parametres">Confidentialité</a> | <a href="#parametres" data-section-link="parametres">CGU</a></p>
+                </div>
+            </footer>
+        </main>
+    </div>
+    </div>
+
+    <div class="modal-overlay" id="modalLoan" role="dialog" aria-modal="true" aria-label="Nouvel emprunt">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3><i class="fas fa-hand-holding" style="color:var(--accent);margin-right:10px;"></i>Nouvel emprunt</h3>
+                <button class="modal-close-btn" data-close-modal="loan"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Étudiant</label>
+                    <select class="form-select" id="loanStudentSelect">
+                        <option value="">— Sélectionner un étudiant —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Livre</label>
+                    <select class="form-select" id="loanBookSelect">
+                        <option value="">— Sélectionner un livre —</option>
+                    </select>
+                </div>
+                <div class="info-box hidden" id="loanReservationInfo"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date d'emprunt</label>
+                        <input type="date" class="form-input" id="loanDateStart">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date de retour prévue</label>
+                        <input type="date" class="form-input" id="loanDateEnd">
+                    </div>
+                </div>
+                <div class="info-box"><i class="fas fa-info-circle"></i>La durée maximale d'emprunt est de <strong id="loanMaxDaysLabel">&nbsp;30 jours</strong>.</div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="loan">Annuler</button>
+                <button class="btn-secondary" id="loanViewAllBooksBtn"><i class="fas fa-book-open"></i> Voir tous les livres</button>
+                <button class="btn-modal-primary" id="submitLoanBtn"><i class="fas fa-save"></i> Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalBookDetail" role="dialog" aria-modal="true" aria-label="Détails du livre">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3><i class="fas fa-book" style="color:var(--accent);margin-right:10px;"></i>Détails du livre</h3>
+                <button class="modal-close-btn" data-close-modal="bookDetail"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align:center;margin-bottom:22px;">
+                    <img id="bookDetailCoverImg" alt="Couverture du livre" class="book-detail-cover-img">
+                    <h4 id="bookDetailTitle" style="margin-top:14px;font-family:var(--font-display);font-size:17px;">Introduction à l'algorithmique</h4>
+                    <p id="bookDetailAuthor" style="color:var(--text-muted);font-size:14px;">Thomas H. Cormen</p>
+                </div>
+                <div class="form-row" style="margin-bottom:14px;">
+                    <div style="background:var(--surface-2);padding:14px;border-radius:var(--radius-sm);"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">ISBN</div><div id="bookDetailIsbn" style="font-weight:600;font-size:13px;">978-2-1234-5678-9</div></div>
+                    <div style="background:var(--surface-2);padding:14px;border-radius:var(--radius-sm);"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Éditeur</div><div id="bookDetailPublisher" style="font-weight:600;font-size:13px;">Dunod – 4e édition</div></div>
+                    <div style="background:var(--surface-2);padding:14px;border-radius:var(--radius-sm);"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Année</div><div id="bookDetailYear" style="font-weight:600;font-size:13px;">2020</div></div>
+                    <div style="background:var(--surface-2);padding:14px;border-radius:var(--radius-sm);"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Catégorie</div><div id="bookDetailCategory" style="font-weight:600;font-size:13px;">Informatique</div></div>
+                </div>
+                <div style="background:var(--surface-2);padding:14px;border-radius:var(--radius-sm);margin-bottom:14px;"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:6px;">Description</div><p id="bookDetailDescription" style="font-size:13px;color:var(--text-muted);line-height:1.6;">Ouvrage de référence en algorithmique, couvrant les concepts fondamentaux et avancés de la programmation.</p></div>
+                <div style="display:flex;gap:10px;">
+                    <div style="flex:1;background:rgba(0,201,167,.08);border:1.5px solid rgba(0,201,167,.2);padding:12px 16px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;"><span style="font-size:13px;font-weight:500;">Disponibilité</span><span id="bookDetailStock" style="background:var(--success);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;">3 exemplaires</span></div>
+                    <div style="flex:1;background:rgba(10,37,64,.05);border:1.5px solid rgba(10,37,64,.1);padding:12px 16px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;"><span style="font-size:13px;font-weight:500;">Emplacement</span><span id="bookDetailLocation" style="background:var(--primary);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;">RAYON A1</span></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="bookDetail">Fermer</button>
+                <button class="btn-secondary" id="requestLoanBtn"><i class="fas fa-hand-holding"></i> Ajouter à l'emprunt</button>
+                <button class="btn-modal-primary" id="reserveBookBtn"><i class="fas fa-bookmark"></i> Réserver</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalBookAdd" role="dialog" aria-modal="true" aria-label="Ajouter un livre">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3><i class="fas fa-book-medical" style="color:var(--accent);margin-right:10px;"></i>Ajouter un livre</h3>
+                <button class="modal-close-btn" data-close-modal="bookAdd"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">ISBN</label>
+                        <input class="form-input" id="bookIsbn" type="text" placeholder="Ex: 978-2-1234-5678-9">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Année</label>
+                        <input class="form-input" id="bookYear" type="number" min="1900" max="2100" placeholder="2026">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Titre</label>
+                    <input class="form-input" id="bookTitle" type="text" placeholder="Titre du livre">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Auteur</label>
+                    <input class="form-input" id="bookAuthor" type="text" placeholder="Nom de l'auteur">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Éditeur</label>
+                        <input class="form-input" id="bookPublisher" type="text" placeholder="Éditeur">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Catégorie</label>
+                        <select class="form-select" id="bookCategoryId">
+                            <option value="">— Sélectionner une catégorie —</option>
+                            <option value="1">Informatique</option>
+                            <option value="2">Mathématiques</option>
+                            <option value="3">Physique</option>
+                            <option value="4">Chimie</option>
+                            <option value="5">Littérature</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Stock total</label>
+                        <input class="form-input" id="bookStockTotal" type="number" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Stock disponible</label>
+                        <input class="form-input" id="bookStockAvailable" type="number" min="0" value="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Emplacement</label>
+                    <input class="form-input" id="bookLocation" type="text" placeholder="Ex: RAYON A5">
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="bookAdd">Annuler</button>
+                <button class="btn-modal-primary" id="submitBookBtn"><i class="fas fa-save"></i> Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalAdminVerify" role="dialog" aria-modal="true" aria-label="Vérification administrateur">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3><i class="fas fa-user-shield" style="color:var(--accent);margin-right:10px;"></i>Vérification administrateur</h3>
+                <button class="modal-close-btn" data-close-modal="adminVerify"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Identifiant admin</label>
+                    <input class="form-input" type="text" id="adminIdentifier" placeholder="demo.admin">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mot de passe admin</label>
+                    <input class="form-input" type="password" id="adminPassword" placeholder="Mot de passe administrateur">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Code de sécurité</label>
+                    <input class="form-input" type="text" id="adminSecurityCode" placeholder="1234">
+                </div>
+                <div class="info-box"><i class="fas fa-lock"></i> Cette vérification est requise pour accéder aux actions sensibles.</div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="adminVerify">Annuler</button>
+                <button class="btn-modal-primary" id="verifyAdminBtn"><i class="fas fa-check-circle"></i> Vérifier</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalStudentAdd" role="dialog" aria-modal="true" aria-label="Ajouter un adhérent">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3><i class="fas fa-user-plus" style="color:var(--accent);margin-right:10px;"></i>Ajouter un adhérent</h3>
+                <button class="modal-close-btn" data-close-modal="studentAdd"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Type d'adhérent</label>
+                    <select class="form-select" id="studentMemberType">
+                        <option value="etudiant">Étudiant</option>
+                        <option value="enseignant">Enseignant</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Nom complet</label>
+                        <input class="form-input" id="studentFullName" type="text" placeholder="Ex: Alice Koffi">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Matricule</label>
+                        <input class="form-input" id="studentCode" type="text" placeholder="Ex: IN2026-101">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input class="form-input" id="studentEmail" type="email" placeholder="..........@esgis.org">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mot de passe initial</label>
+                        <input class="form-input" id="studentPassword" type="password" placeholder="Mot de passe de connexion">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Filière</label>
+                        <input class="form-input" id="studentDepartment" type="text" placeholder="Informatique">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Niveau</label>
+                        <input class="form-input" id="studentLevel" type="text" placeholder="L1, L2, L3, M1...">
+                    </div>
+                </div>
+                <div class="info-box"><i class="fas fa-info-circle"></i> L'étudiant pourra se connecter avec son email et le mot de passe initial.</div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="studentAdd">Annuler</button>
+                <button class="btn-modal-primary" id="submitStudentBtn"><i class="fas fa-save"></i> Ajouter l'adhérent</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalDevTeam" role="dialog" aria-modal="true" aria-label="Profils développeurs">
+        <div class="modal-box modal-box-wide">
+            <div class="modal-head">
+                <h3><i class="fas fa-code" style="color:var(--accent);margin-right:10px;"></i>Équipe développeurs</h3>
+                <button class="modal-close-btn" data-close-modal="devTeam"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="dev-grid">
+                    <article class="dev-card">
+                        <h4>Ayité SATCHIVI</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur Front-End</li>
+                            <li><strong>Téléphone:</strong> +228 92 12 62 41</li>
+                            <li><strong>Email:</strong> ayite.satchivi@esgis.org </li>
+                            <li><strong>LinkedIn:</strong> <a href="https://www.linkedin.com/in/ayite-satchivi-350857333/" target="_blank" rel="noopener noreferrer">linkedin.com/in/ayite-satchivi-350857333</a></li>
+                            <li><strong>GitHub:</strong> ayite92</a></li>
+                            <li><strong>Portfolio:</strong> --- </li>
+                            <li><strong>Adresse:</strong> Lomé, Togo</li>
+                            <li><strong>Compétences:</strong> HTML, CSS, JavaScript, MySQL</li>
+                        </ul>
+                    </article>
+                    <article class="dev-card">
+                        <h4>Koffi AGBESSI</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur UI/UX</li>
+                            <li><strong>Téléphone:</strong> +228 90 84 92 34</li>
+                            <li><strong>Email:</strong> agbessifarid@gmail.com</li>
+                            <li><strong>LinkedIn:</strong> ---</li>
+                            <li><strong>GitHub:</strong> ---</li>
+                            <li><strong>Portfolio:</strong> ---</li>
+                            <li><strong>Adresse:</strong> Lomé, Togo</li>
+                            <li><strong>Compétences:</strong> UI/UX Designer</li>
+                        </ul>
+                    </article>
+                    <article class="dev-card">
+                        <h4>Mensah Komlan</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur Front-End</li>
+                            <li><strong>Téléphone:</strong> +228 90 88 00 72</li>
+                            <li><strong>Email:</strong> albansharonyenkey@gmail.com</li>
+                            <li><strong>LinkedIn:</strong> linkedin.com/in/mensahkomlan</li>
+                            <li><strong>GitHub:</strong> albansharonyenkey-web</li>
+                            <li><strong>Portfolio:</strong> ---</li>
+                            <li><strong>Adresse:</strong> Zanguéra, Togo</li>
+                            <li><strong>Compétences:</strong> HTML, CSS, MySQL</li>
+                        </ul>
+                    </article>
+                    <article class="dev-card">
+                        <h4>Romaric AMOUZOU</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur Back-End</li>
+                            <li><strong>Téléphone:</strong> +228 90 12 87 03</li>
+                            <li><strong>Email:</strong> ---</li>
+                            <li><strong>LinkedIn:</strong> ---</li>
+                            <li><strong>GitHub:</strong> </li>
+                            <li><strong>Portfolio:</strong> ---</li>
+                            <li><strong>Adresse:</strong> Akato, Togo</li>
+                            <li><strong>Compétences:</strong> HTML, CSS</li>
+                        </ul>
+                    </article>
+                    <article class="dev-card">
+                        <h4>Loïc ODOVI</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur Front-end</li>
+                            <li><strong>Téléphone:</strong> +228 97 45 22 29</li>
+                            <li><strong>Email:</strong> ---</li>
+                            <li><strong>LinkedIn:</strong> ---</li>
+                            <li><strong>GitHub:</strong> </li>
+                            <li><strong>Portfolio:</strong> ---</li>
+                            <li><strong>Adresse:</strong> Logoté, Togo</li>
+                            <li><strong>Compétences:</strong> HTML, CSS, PHP, REACT</li>
+                        </ul>
+                    </article>
+                    <article class="dev-card">
+                        <h4>Hommère AYEDJE</h4>
+                        <ul>
+                            <li><strong>Rôle:</strong> Développeur Back-End</li>
+                            <li><strong>Téléphone:</strong> +228 96 39 67 05</li>
+                            <li><strong>Email:</strong> ---</li>
+                            <li><strong>LinkedIn:</strong> ---</li>
+                            <li><strong>GitHub:</strong> </li>
+                            <li><strong>Portfolio:</strong> ---</li>
+                            <li><strong>Adresse:</strong> Yokoè, Togo</li>
+                            <li><strong>Compétences:</strong> HTML, CSS, MySQL</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-secondary" data-close-modal="devTeam">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toastEl">
+        <div class="toast-icon"><i class="fas fa-check" id="toastIcon"></i></div>
+        <div>
+            <div class="toast-title" id="toastTitle">Succès</div>
+            <div class="toast-msg" id="toastMsg">Action effectuée</div>
+        </div>
+        <div class="toast-close" id="toastClose"><i class="fas fa-times"></i></div>
+    </div>
+
+    <script src="bibliotheque.js"></script>
+</body>
+</html>

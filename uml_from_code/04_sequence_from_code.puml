@@ -1,0 +1,41 @@
+@startuml
+actor Admin as A
+participant "Front JS\n(bibliotheque.js)" as F
+participant "API\nemprunts_ajouter.php" as API
+database "MySQL" as DB
+
+A -> F: Enregistrer emprunt
+F -> API: POST /api/emprunts_ajouter\n(etudiant_id, livre_id, dates)
+API -> DB: SELECT livre by id
+DB --> API: livre + stock
+API -> DB: SELECT etudiant by id
+DB --> API: etudiant
+API -> DB: SELECT param quota_max_emprunts_actifs
+DB --> API: quota
+API -> DB: COUNT emprunts actifs adhérent
+DB --> API: nb_actifs
+API -> DB: COUNT retards actifs adhérent
+DB --> API: nb_retards
+
+alt Stock<=0 or quota atteint or retards>0
+  API --> F: 409 erreur métier
+  F --> A: Message refus
+else OK
+  API -> DB: INSERT emprunt
+  API -> DB: UPDATE livres stock = stock - 1
+  API --> F: 201 succès
+  F -> API: GET /api/livres_lister
+  F -> API: GET /api/emprunts_lister
+  F --> A: Table mise à jour
+end
+
+== Recherche livre ==
+actor Adherent as U
+U -> F: Recherche (titre/auteur/catégorie)
+F -> API: GET /api/livres_lister
+API -> DB: SELECT livres + catégories
+DB --> API: liste livres
+API --> F: JSON livres
+F --> U: Résultats filtrés
+
+@enduml

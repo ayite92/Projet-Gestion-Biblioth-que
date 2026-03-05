@@ -1,0 +1,56 @@
+@startuml
+start
+
+:Bibliothécaire ouvre "Nouvel emprunt";
+:Saisit adhérent, livre, dates;
+
+if (Champs valides ?) then (oui)
+else (non)
+  :Refuser (données incomplètes);
+  stop
+endif
+
+if (Date retour >= date emprunt ?) then (oui)
+else (non)
+  :Refuser (date invalide);
+  stop
+endif
+
+:API emprunts_ajouter.php;
+if (Livre existe ?) then (oui)
+else (non)
+  :Refuser (Livre introuvable);
+  stop
+endif
+
+if (Stock disponible > 0 ?) then (oui)
+else (non)
+  :Refuser (Aucun exemplaire disponible);
+  stop
+endif
+
+if (Adhérent existe ?) then (oui)
+else (non)
+  :Refuser (Adhérent introuvable);
+  stop
+endif
+
+if (Quota actif non atteint ?) then (oui)
+else (non)
+  :Refuser (Quota atteint);
+  stop
+endif
+
+if (Retards actifs = 0 ?) then (oui)
+else (non)
+  :Refuser (retards en cours);
+  stop
+endif
+
+:Créer emprunt;
+:Décrémenter stock livre (-1);
+:Mettre statut livre (disponible/rupture);
+:Retour succès;
+stop
+
+@enduml

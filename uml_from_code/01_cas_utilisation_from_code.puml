@@ -1,0 +1,103 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Adhérent\n(étudiant/enseignant)" as Adherent
+actor "Bibliothécaire\n(admin validé)" as Biblio
+
+rectangle "Système gestionBibliothèque" {
+  usecase "S'inscrire" as UC_Register
+  usecase "Se connecter" as UC_Login
+  usecase "Se déconnecter" as UC_Logout
+  usecase "Rechercher un livre" as UC_Search
+  usecase "Réserver un livre\n(indisponible)" as UC_Reserve
+  usecase "Demander un emprunt\n(livre disponible)" as UC_RequestLoan
+  usecase "Consulter mes emprunts" as UC_MyLoans
+  usecase "Modifier mon profil" as UC_Profile
+  usecase "Consulter notifications" as UC_Notifications
+  usecase "Créer une réclamation" as UC_CreateClaim
+  usecase "Basculer le thème" as UC_ToggleTheme
+
+  usecase "Vérifier accès administrateur" as UC_VerifyAdmin
+  usecase "Ajouter un adhérent" as UC_AddMember
+  usecase "Supprimer un adhérent" as UC_DeleteMember
+  usecase "Ajouter un livre" as UC_AddBook
+  usecase "Créer un emprunt" as UC_Loan
+  usecase "Valider une demande d'emprunt" as UC_ApproveLoan
+  usecase "Retourner un emprunt" as UC_Return
+  usecase "Consulter tableau de bord" as UC_Dashboard
+  usecase "Modifier paramètres métier" as UC_Settings
+  usecase "Répondre aux réclamations" as UC_ReplyClaim
+
+  usecase "Vérifier disponibilité livre" as UC_CheckStock
+  usecase "Vérifier quota actif" as UC_CheckQuota
+  usecase "Vérifier retards adhérent" as UC_CheckLate
+  usecase "Calculer pénalité" as UC_CalcPenalty
+}
+
+Adherent --> UC_Register
+Adherent --> UC_Login
+Adherent --> UC_Logout
+Adherent --> UC_Search
+Adherent --> UC_Reserve
+Adherent --> UC_RequestLoan
+Adherent --> UC_MyLoans
+Adherent --> UC_Profile
+Adherent --> UC_Notifications
+Adherent --> UC_CreateClaim
+Adherent --> UC_ToggleTheme
+
+Biblio --> UC_Login
+Biblio --> UC_VerifyAdmin
+Biblio --> UC_Logout
+Biblio --> UC_AddMember
+Biblio --> UC_DeleteMember
+Biblio --> UC_AddBook
+Biblio --> UC_Loan
+Biblio --> UC_ApproveLoan
+Biblio --> UC_Return
+Biblio --> UC_Dashboard
+Biblio --> UC_Settings
+Biblio --> UC_Profile
+Biblio --> UC_Notifications
+Biblio --> UC_ReplyClaim
+Biblio --> UC_ToggleTheme
+
+UC_Loan .> UC_CheckStock : <<include>>
+UC_Loan .> UC_CheckQuota : <<include>>
+UC_Loan .> UC_CheckLate : <<include>>
+UC_Return .> UC_CalcPenalty : <<include>>
+UC_ApproveLoan .> UC_Loan : <<include>>
+UC_RequestLoan .> UC_CheckStock : <<include>>
+UC_Reserve .> UC_CheckStock : <<include>>
+
+UC_AddMember .> UC_VerifyAdmin : <<include>>
+UC_DeleteMember .> UC_VerifyAdmin : <<include>>
+UC_AddBook .> UC_VerifyAdmin : <<include>>
+UC_Loan .> UC_VerifyAdmin : <<include>>
+UC_ApproveLoan .> UC_VerifyAdmin : <<include>>
+UC_Return .> UC_VerifyAdmin : <<include>>
+UC_Settings .> UC_VerifyAdmin : <<include>>
+UC_ReplyClaim .> UC_VerifyAdmin : <<include>>
+
+UC_CreateClaim .> UC_Notifications : <<extend>>
+UC_ReplyClaim .> UC_Notifications : <<extend>>
+
+note bottom of UC_Loan
+Basé sur api/emprunts_ajouter.php :
+- disponibilité nombre_exemplaires_disponibles
+- quota_max_emprunts_actifs
+- blocage si retards actifs
+end note
+
+note bottom of UC_Reserve
+Basé sur bibliotheque.js :
+réservation autorisée si stock <= 0
+end note
+
+note bottom of UC_VerifyAdmin
+Basé sur api/verifier_acces_admin.php :
+validation identifiant + mot de passe + code sécurité
+end note
+
+@enduml

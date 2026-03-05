@@ -1,0 +1,90 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Role {
+  +id: bigint
+  +nom: string
+}
+
+class Utilisateur {
+  +id: bigint
+  +nom_complet: string
+  +email: string
+  +mot_de_passe_hash: string
+  +est_actif: bool
+}
+
+class Adherent {
+  +id: bigint
+  +matricule: string
+  +filiere: string
+  +niveau: string
+  +date_inscription: date
+  +statut: enum
+}
+
+class Categorie {
+  +id: bigint
+  +nom: string
+  +description: string
+}
+
+class Livre {
+  +id: bigint
+  +isbn: string
+  +titre: string
+  +auteur: string
+  +editeur: string
+  +annee_publication: int
+  +nombre_total_exemplaires: int
+  +nombre_exemplaires_disponibles: int
+  +statut: enum(disponible,rupture,archive)
+}
+
+class Emprunt {
+  +id: bigint
+  +date_emprunt: date
+  +date_retour_prevue: date
+  +date_retour_effective: date?
+  +statut: enum(en_cours,retourne,en_retard,perdu)
+  +montant_penalite: decimal
+}
+
+class Penalite {
+  +montant_journalier: decimal
+  +jours_retard: int
+  +montant_total: decimal
+}
+
+class Reservation <<front-localStorage>> {
+  +id: string
+  +etudiantNom: string
+  +etudiantEmail: string
+  +titreLivre: string
+  +dateReservation: date
+  +statut: string
+}
+
+class ParametreApplication {
+  +cle: string
+  +valeur: string
+}
+
+Role "1" <-- "0..*" Utilisateur : role_id
+Utilisateur "1" -- "0..1" Adherent : utilisateur_id
+Categorie "1" <-- "0..*" Livre : categorie_id
+Adherent "1" <-- "0..*" Emprunt : etudiant_id
+Livre "1" <-- "0..*" Emprunt : livre_id
+Utilisateur "1" <-- "0..*" Emprunt : admin_emetteur_id
+Emprunt "1" -- "0..1" Penalite : calcul au retour
+Adherent "1" <-- "0..*" Reservation : demandeur
+Livre "1" <-- "0..*" Reservation : sélection par titre
+ParametreApplication "1..*" ..> Emprunt : quota / pénalité / durée
+
+note right of Reservation
+Entité côté front (bibliotheque.js)
+stockée dans localStorage
+(STORAGE_RESERVATIONS_KEY)
+end note
+
+@enduml
