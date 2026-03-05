@@ -18,7 +18,7 @@ $adminId = (int) ($_SESSION['admin_utilisateur_id'] ?? $utilisateur['id']);
 
 $pdo->beginTransaction();
 try {
-    $stmtEtudiant = $pdo->prepare('SELECT id, utilisateur_id FROM etudiants WHERE id = :id LIMIT 1');
+    $stmtEtudiant = $pdo->prepare('SELECT id, utilisateur_id, matricule FROM etudiants WHERE id = :id LIMIT 1');
     $stmtEtudiant->execute(['id' => $etudiantId]);
     $etudiant = $stmtEtudiant->fetch();
 
@@ -34,44 +34,31 @@ try {
     $stmtReclamations->execute(['etudiant_id' => $etudiantId]);
     $nbReclamations = (int) ($stmtReclamations->fetch()['total'] ?? 0);
 
-    if ($nbEmprunts > 0 || $nbReclamations > 0) {
-        $stmtDesactiverEtudiant = $pdo->prepare(
-            'UPDATE etudiants
-             SET statut = :statut
-             WHERE id = :id'
-        );
-        $stmtDesactiverEtudiant->execute([
-            'statut' => 'suspendu',
-            'id' => $etudiantId,
-        ]);
+    $nouveauMatricule = sprintf('DEL%d-%s', $etudiantId, (string) $etudiant['matricule']);
 
-        if (!empty($etudiant['utilisateur_id'])) {
-            $stmtDesactiverUser = $pdo->prepare(
-                'UPDATE utilisateurs
-                 SET est_actif = 0
-                 WHERE id = :id'
-            );
-            $stmtDesactiverUser->execute(['id' => (int) $etudiant['utilisateur_id']]);
-        }
-
-        enregistrerJournalAudit('desactivation_etudiant', 'etudiants', $etudiantId, 'Désactivation étudiant (historique conservé)', $adminId);
-
-        $pdo->commit();
-        envoyerJson(['ok' => true, 'message' => 'Étudiant désactivé avec succès (historique conservé).']);
-    }
-
-    $stmtDelEtudiant = $pdo->prepare('DELETE FROM etudiants WHERE id = :id');
-    $stmtDelEtudiant->execute(['id' => $etudiantId]);
+    $stmtDesactiverEtudiant = $pdo->prepare(
+        'UPDATE etudiants
+         SET statut = :statut, utilisateur_id = NULL, matricule = :matricule
+         WHERE id = :id'
+    );
+    $stmtDesactiverEtudiant->execute([
+        'statut' => 'suspendu',
+        'matricule' => $nouveauMatricule,
+        'id' => $etudiantId,
+    ]);
 
     if (!empty($etudiant['utilisateur_id'])) {
         $stmtDelUser = $pdo->prepare('DELETE FROM utilisateurs WHERE id = :id');
         $stmtDelUser->execute(['id' => (int) $etudiant['utilisateur_id']]);
     }
 
-    enregistrerJournalAudit('suppression_etudiant', 'etudiants', $etudiantId, 'Suppression étudiant', $adminId);
+    $description = ($nbEmprunts > 0 || $nbReclamations > 0)
+        ? 'Suppression logique étudiant (historique conservé, accès révoqué)'
+        : 'Suppression logique étudiant (sans historique actif)';
+    enregistrerJournalAudit('suppression_etudiant', 'etudiants', $etudiantId, $description, $adminId);
 
     $pdo->commit();
-    envoyerJson(['ok' => true, 'message' => 'Étudiant supprimé avec succès.']);
+    envoyerJson(['ok' => true, 'message' => 'Étudiant supprimé avec succès. Accès révoqué, réinscription possible.']);
 } catch (Throwable $e) {
     $pdo->rollBack();
     envoyerJson(['ok' => false, 'message' => 'Impossible de supprimer l\'étudiant.', 'erreur' => $e->getMessage()], 500);

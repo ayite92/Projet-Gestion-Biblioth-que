@@ -35,7 +35,7 @@ Modifier `config.php`:
 ### Connexion
 ```json
 {
-  "email": "email.bibliotheque@esgis.org",
+  "email": "admin@gestionbiblio.tg",
   "mot_de_passe": "#Boy@2026"
 }
 ```

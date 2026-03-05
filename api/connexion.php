@@ -12,88 +12,17 @@ $donnees = $methode === 'POST' ? lireCorpsJson() : $_GET;
 
 $email = mb_strtolower(trim((string) ($donnees['email'] ?? '')));
 $motDePasse = (string) ($donnees['mot_de_passe'] ?? '');
+$emailBanni = 'email.bibliotheque@esgis.org';
 
 if ($email === '' || $motDePasse === '') {
     envoyerJson(['ok' => false, 'message' => 'Email et mot de passe requis.'], 422);
 }
 
-$pdo = obtenirConnexionBdd();
-
-if ($email === DEMO_COMPTE_EMAIL && $motDePasse === DEMO_COMPTE_MOT_DE_PASSE) {
-    $roleAdminId = idRoleParNom($pdo, 'administrateur');
-    if (!$roleAdminId) {
-        envoyerJson(['ok' => false, 'message' => 'Rôle administrateur introuvable.'], 500);
-    }
-
-    $hashMotDePasseDemo = password_hash(DEMO_COMPTE_MOT_DE_PASSE, PASSWORD_DEFAULT);
-    $hashCodeDemo = password_hash(DEMO_ADMIN_CODE, PASSWORD_DEFAULT);
-
-    $pdo->beginTransaction();
-    try {
-        $stmtDemo = $pdo->prepare('SELECT id FROM utilisateurs WHERE email = :email LIMIT 1');
-        $stmtDemo->execute(['email' => DEMO_COMPTE_EMAIL]);
-        $demo = $stmtDemo->fetch();
-
-        if ($demo) {
-            $utilisateurDemoId = (int) $demo['id'];
-            $stmtMajDemo = $pdo->prepare(
-                'UPDATE utilisateurs
-                 SET nom_complet = :nom_complet, mot_de_passe_hash = :mot_de_passe_hash, role_id = :role_id, est_actif = 1
-                 WHERE id = :id'
-            );
-            $stmtMajDemo->execute([
-                'nom_complet' => DEMO_COMPTE_NOM,
-                'mot_de_passe_hash' => $hashMotDePasseDemo,
-                'role_id' => $roleAdminId,
-                'id' => $utilisateurDemoId,
-            ]);
-        } else {
-            $stmtInsertDemo = $pdo->prepare(
-                'INSERT INTO utilisateurs (nom_complet, email, mot_de_passe_hash, role_id, est_actif)
-                 VALUES (:nom_complet, :email, :mot_de_passe_hash, :role_id, 1)'
-            );
-            $stmtInsertDemo->execute([
-                'nom_complet' => DEMO_COMPTE_NOM,
-                'email' => DEMO_COMPTE_EMAIL,
-                'mot_de_passe_hash' => $hashMotDePasseDemo,
-                'role_id' => $roleAdminId,
-            ]);
-            $utilisateurDemoId = (int) $pdo->lastInsertId();
-        }
-
-        $stmtAdminProfil = $pdo->prepare('SELECT id FROM profils_administrateurs WHERE utilisateur_id = :utilisateur_id LIMIT 1');
-        $stmtAdminProfil->execute(['utilisateur_id' => $utilisateurDemoId]);
-        $profilAdmin = $stmtAdminProfil->fetch();
-
-        if ($profilAdmin) {
-            $stmtMajProfil = $pdo->prepare(
-                'UPDATE profils_administrateurs
-                 SET identifiant_admin = :identifiant_admin, code_securite_hash = :code_securite_hash
-                 WHERE utilisateur_id = :utilisateur_id'
-            );
-            $stmtMajProfil->execute([
-                'identifiant_admin' => DEMO_ADMIN_IDENTIFIANT,
-                'code_securite_hash' => $hashCodeDemo,
-                'utilisateur_id' => $utilisateurDemoId,
-            ]);
-        } else {
-            $stmtInsertProfil = $pdo->prepare(
-                'INSERT INTO profils_administrateurs (utilisateur_id, identifiant_admin, code_securite_hash)
-                 VALUES (:utilisateur_id, :identifiant_admin, :code_securite_hash)'
-            );
-            $stmtInsertProfil->execute([
-                'utilisateur_id' => $utilisateurDemoId,
-                'identifiant_admin' => DEMO_ADMIN_IDENTIFIANT,
-                'code_securite_hash' => $hashCodeDemo,
-            ]);
-        }
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        $pdo->rollBack();
-        envoyerJson(['ok' => false, 'message' => 'Impossible de préparer le compte démo.', 'erreur' => $e->getMessage()], 500);
-    }
+if ($email === $emailBanni) {
+    envoyerJson(['ok' => false, 'message' => 'Ce compte est désactivé.'], 403);
 }
+
+$pdo = obtenirConnexionBdd();
 
 $stmt = $pdo->prepare(
     'SELECT u.id, u.nom_complet, u.email, u.mot_de_passe_hash, u.est_actif, r.nom AS role_nom

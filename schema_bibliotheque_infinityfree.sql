@@ -1,10 +1,6 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-CREATE DATABASE IF NOT EXISTS bibliotheque_fr
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-USE bibliotheque_fr;
 
 -- Nettoyage pour re-import
 DROP TABLE IF EXISTS journal_audit;

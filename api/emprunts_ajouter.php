@@ -37,9 +37,16 @@ try {
         envoyerJson(['ok' => false, 'message' => 'Aucun exemplaire disponible.'], 409);
     }
 
-    $stmtEtudiant = $pdo->prepare('SELECT id FROM etudiants WHERE id = :id LIMIT 1');
+    $stmtEtudiant = $pdo->prepare(
+        'SELECT e.id, u.nom_complet
+         FROM etudiants e
+         LEFT JOIN utilisateurs u ON u.id = e.utilisateur_id
+         WHERE e.id = :id
+         LIMIT 1'
+    );
     $stmtEtudiant->execute(['id' => $etudiantId]);
-    if (!$stmtEtudiant->fetch()) {
+    $etudiant = $stmtEtudiant->fetch();
+    if (!$etudiant) {
         envoyerJson(['ok' => false, 'message' => 'Étudiant introuvable.'], 404);
     }
 
@@ -105,6 +112,20 @@ try {
          WHERE id = :id'
     );
     $stmtMajLivre->execute(['id' => $livreId]);
+
+    $stmtNotif = $pdo->prepare(
+        'INSERT INTO notifications (utilisateur_id, titre, message, type, est_lue)
+         VALUES (NULL, :titre, :message, :type, 0)'
+    );
+    $stmtNotif->execute([
+        'titre' => 'Nouvel emprunt',
+        'message' => sprintf(
+            'Emprunt validé: %s (%s).',
+            (string) $livre['titre'],
+            (string) ($etudiant['nom_complet'] ?: ('étudiant #' . $etudiantId))
+        ),
+        'type' => 'info',
+    ]);
 
     enregistrerJournalAudit('creation_emprunt', 'emprunts', $empruntId, 'Création emprunt', $adminId);
 

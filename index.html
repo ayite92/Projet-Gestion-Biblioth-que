@@ -42,7 +42,6 @@
                 <button class="btn-modal-primary auth-submit" type="submit">
                     <i class="fas fa-sign-in-alt"></i> Se connecter
                 </button>
-                <p class="auth-help">Compte démo: <strong>demo@esgis.org</strong> / <strong>demo1234</strong></p>
             </form>
 
             <form id="registerForm" class="auth-form">
@@ -60,6 +59,16 @@
                 <div class="form-group">
                     <label class="form-label">Email</label>
                     <input class="form-input" id="registerEmail" type="email" placeholder="..........@esgis.org" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Filière</label>
+                        <input class="form-input" id="registerDepartment" type="text" placeholder="Ex: Informatique" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Niveau</label>
+                        <input class="form-input" id="registerLevel" type="text" placeholder="Ex: L1, L2, L3, M1..." required>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Mot de passe</label>
@@ -163,11 +172,11 @@
                             Tableau de bord – Bibliothèque Universitaire
                         </div>
                         <h2>Bienvenue,&nbsp;<span id="welcomeRole" style="color:var(--accent)">Étudiant</span></h2>
-                        <p>Consultez le catalogue, réservez des livres et suivez vos emprunts depuis votre espace adhérent.</p>
+                        <p id="heroRoleDescription">Consultez le catalogue, réservez des livres et suivez vos emprunts depuis votre espace adhérent.</p>
                         <div class="hero-stats-row">
                             <div class="h-stat"><span class="h-stat-num" id="heroBooksCount">0</span><span class="h-stat-lbl">Livres</span></div>
                             <div class="h-stat-divider"></div>
-                            <div class="h-stat"><span class="h-stat-num" id="heroStudentsCount">0</span><span class="h-stat-lbl">Étudiants</span></div>
+                            <div class="h-stat"><span class="h-stat-num" id="heroStudentsCount">0</span><span class="h-stat-lbl">Adhérents</span></div>
                             <div class="h-stat-divider"></div>
                             <div class="h-stat"><span class="h-stat-num" id="heroLoansCount">0</span><span class="h-stat-lbl">Emprunts</span></div>
                             <div class="h-stat-divider"></div>
@@ -319,11 +328,7 @@
                     <div class="loans-table-wrap">
                         <table class="loans-table" id="studentsTable">
                             <thead><tr><th>Nom</th><th>Matricule</th><th>Filière</th><th>Emprunts</th><th>Actions</th></tr></thead>
-                            <tbody id="studentsTableBody">
-                                <tr><td>Marie Dupont</td><td>IN2024-001</td><td>Informatique L3</td><td>3</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Marie Dupont"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Marie Dupont"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
-                                <tr><td>Pierre Martin</td><td>MA2024-045</td><td>Mathématiques M1</td><td>1</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Pierre Martin"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Pierre Martin"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
-                                <tr><td>Sophie Bernard</td><td>PH2024-023</td><td>Physique L2</td><td>2</td><td><button class="action-btn btn-return" data-toast-title="Profil ouvert" data-toast-msg="Sophie Bernard"><i class="fas fa-eye"></i> Voir</button> <button class="action-btn btn-danger" data-admin-only="true" data-delete-student="Sophie Bernard"><i class="fas fa-trash"></i> Supprimer</button></td></tr>
-                            </tbody>
+                            <tbody id="studentsTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -375,14 +380,9 @@
                 <div class="card">
                     <div class="card-header">
                         <div><div class="card-title">Notifications</div><div class="card-subtitle">Alertes opérationnelles de la bibliothèque</div></div>
-                        <button class="btn-secondary" id="markAllReadBtn"><i class="fas fa-check-double"></i> Tout marquer comme lu</button>
+                        <button class="btn-secondary" id="markAllReadBtn" data-admin-only="true"><i class="fas fa-check-double"></i> Tout marquer comme lu</button>
                     </div>
-                    <div class="notification-list" id="notificationList">
-                        <div class="notification-item unread"><div><strong>Retour en retard</strong><p>Sophie Bernard dépasse de 11 jours.</p></div><button class="btn-secondary" data-mark-read="true">Marquer lu</button></div>
-                        <div class="notification-item unread"><div><strong>Stock faible</strong><p>Physique quantique est indisponible.</p></div><button class="btn-secondary" data-mark-read="true">Marquer lu</button></div>
-                        <div class="notification-item"><div><strong>Nouveau compte étudiant</strong><p>Clara Roux a été ajoutée.</p></div><span class="status-pill retourne">Lu</span></div>
-                        <div class="notification-item"><div><strong>Rapport hebdomadaire</strong><p>Le rapport de fréquentation est prêt.</p></div><span class="status-pill retourne">Lu</span></div>
-                    </div>
+                    <div class="notification-list" id="notificationList"></div>
                 </div>
             </section>
 
@@ -391,7 +391,7 @@
                     <div class="card-header"><div><div class="card-title">Paramètres système</div><div class="card-subtitle">Gestion du profil et des règles métier</div></div></div>
                     <div class="settings-grid">
                         <div class="form-group"><label class="form-label">Nom utilisateur</label><input type="text" class="form-input" id="settingsName" value="Admin Biblio"></div>
-                        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="settingsEmail" value="email.bibliotheque@esgis.org"></div>
+                        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="settingsEmail" value="admin@gestionbiblio.tg"></div>
                         <div class="form-group"><label class="form-label">Durée max emprunt (jours)</label><input type="number" class="form-input" id="settingsLoanDays" value="30" min="1" max="60" data-admin-only="true"></div>
                         <div class="form-group"><label class="form-label">Pénalité journalière (€)</label><input type="number" class="form-input" id="settingsPenalty" value="1" min="0" step="0.5" data-admin-only="true"></div>
                         <div class="form-group"><label class="form-label">Quota max emprunts actifs</label><input type="number" class="form-input" id="settingsLoanQuota" value="3" min="1" max="20" data-admin-only="true"></div>
@@ -406,7 +406,7 @@
                     <div class="footer-col">
                         <h4>Développeurs</h4>
                         <button type="button" class="footer-dev-trigger" data-open-modal="devTeam">
-                            Voir l'équipe</i>
+                            Voir l'équipe <i class="fas fa-external-link-alt"></i>
                         </button>
                     </div>
                     <div class="footer-col">
@@ -512,8 +512,8 @@
             </div>
             <div class="modal-foot">
                 <button class="btn-secondary" data-close-modal="bookDetail">Fermer</button>
-                <button class="btn-secondary" id="requestLoanBtn"><i class="fas fa-hand-holding"></i> Ajouter à l'emprunt</button>
-                <button class="btn-modal-primary" id="reserveBookBtn"><i class="fas fa-bookmark"></i> Réserver</button>
+                <button class="btn-secondary" id="requestLoanBtn" data-student-only="true"><i class="fas fa-hand-holding"></i> Ajouter à l'emprunt</button>
+                <button class="btn-modal-primary" id="reserveBookBtn" data-student-only="true"><i class="fas fa-bookmark"></i> Réserver</button>
             </div>
         </div>
     </div>
@@ -591,15 +591,15 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Identifiant admin</label>
-                    <input class="form-input" type="text" id="adminIdentifier" placeholder="demo.admin">
+                    <input class="form-input" type="text" id="adminIdentifier" placeholder="biblio.admin">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Mot de passe admin</label>
-                    <input class="form-input" type="password" id="adminPassword" placeholder="Mot de passe administrateur">
+                    <input class="form-input" type="password" id="adminPassword" placeholder="ADMIN2026">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Code de sécurité</label>
-                    <input class="form-input" type="text" id="adminSecurityCode" placeholder="1234">
+                    <input class="form-input" type="text" id="adminSecurityCode" placeholder="2026">
                 </div>
                 <div class="info-box"><i class="fas fa-lock"></i> Cette vérification est requise pour accéder aux actions sensibles.</div>
             </div>
@@ -631,7 +631,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Matricule</label>
-                        <input class="form-input" id="studentCode" type="text" placeholder="Ex: IN2026-101">
+                        <input class="form-input" id="studentCode" type="text" value="Auto-généré" readonly>
                     </div>
                 </div>
                 <div class="form-row">
@@ -676,9 +676,9 @@
                         <ul>
                             <li><strong>Rôle:</strong> Développeur Front-End</li>
                             <li><strong>Téléphone:</strong> +228 92 12 62 41</li>
-                            <li><strong>Email:</strong> ayite.satchivi@esgis.org </li>
+                            <li><strong>Email:</strong> <a href="mailto:ayite.satchivi@esgis.org?subject=Prise%20de%20contact">ayite.satchivi@esgis.org</a></li>
                             <li><strong>LinkedIn:</strong> <a href="https://www.linkedin.com/in/ayite-satchivi-350857333/" target="_blank" rel="noopener noreferrer">linkedin.com/in/ayite-satchivi-350857333</a></li>
-                            <li><strong>GitHub:</strong> ayite92</a></li>
+                            <li><strong>GitHub:</strong> <a href="https://github.com/ayite92" target="_blank" rel="noopener noreferrer">github.com/ayite92</a></li>
                             <li><strong>Portfolio:</strong> --- </li>
                             <li><strong>Adresse:</strong> Lomé, Togo</li>
                             <li><strong>Compétences:</strong> HTML, CSS, JavaScript, MySQL</li>

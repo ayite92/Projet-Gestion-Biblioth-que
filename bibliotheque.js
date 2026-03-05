@@ -17,7 +17,7 @@ const appState = {
     role: 'student',
     activeSection: 'dashboard',
     activeModal: null,
-    unreadNotifications: 2,
+    unreadNotifications: 0,
     currentUser: null,
     livreSelectionne: null,
     livresCatalogue: [],
@@ -141,29 +141,36 @@ async function handleRegister() {
     const nameInput = document.getElementById('registerName');
     const memberTypeInput = document.getElementById('registerMemberType');
     const emailInput = document.getElementById('registerEmail');
+    const departmentInput = document.getElementById('registerDepartment');
+    const levelInput = document.getElementById('registerLevel');
     const passwordInput = document.getElementById('registerPassword');
 
-    if (!nameInput || !memberTypeInput || !emailInput || !passwordInput) return;
+    if (!nameInput || !memberTypeInput || !emailInput || !departmentInput || !levelInput || !passwordInput) return;
 
     const rawName = nameInput.value.trim();
     const typeAdherent = memberTypeInput.value === 'enseignant' ? 'enseignant' : 'etudiant';
     const email = emailInput.value.trim().toLowerCase();
+    const filiere = departmentInput.value.trim();
+    const niveau = levelInput.value.trim();
     const password = passwordInput.value;
     const name = rawName || email.split('@')[0] || (typeAdherent === 'enseignant' ? 'Enseignant' : 'Étudiant');
 
-    if (!email || !password) {
+    if (!email || !password || !filiere || !niveau) {
         showToast('Inscription', 'Tous les champs sont obligatoires.');
         return;
     }
 
+    let reponse = null;
     try {
-        await apiJson(`${API_BASE}/inscription.php`, {
+        reponse = await apiJson(`${API_BASE}/inscription.php`, {
             method: 'POST',
             body: JSON.stringify({
                 nom_complet: name,
                 email,
                 mot_de_passe: password,
-                type_adherent: typeAdherent
+                type_adherent: typeAdherent,
+                filiere,
+                niveau
             })
         });
     } catch (error) {
@@ -174,11 +181,14 @@ async function handleRegister() {
     nameInput.value = '';
     memberTypeInput.value = 'etudiant';
     emailInput.value = '';
+    departmentInput.value = '';
+    levelInput.value = '';
     passwordInput.value = '';
 
     const typeLabel = typeAdherent === 'enseignant' ? 'Enseignant' : 'Étudiant';
     ajouterNotificationLocale('Nouvelle inscription', `${typeLabel} inscrit: ${name}.`);
-    showToast('Inscription réussie', 'Compte adhérent enregistré en base. Tu peux te connecter.');
+    const matriculeCree = reponse?.utilisateur?.matricule || 'auto-généré';
+    showToast('Inscription réussie', `Compte adhérent enregistré (${matriculeCree}). Tu peux te connecter.`);
     switchAuthTab('login');
 }
 
@@ -255,6 +265,7 @@ function finaliserEntreeApplication() {
     chargerEtudiantsDepuisApi();
     chargerEmpruntsDepuisApi();
     chargerParametresApplication();
+    chargerNotificationsDepuisApi();
 }
 
 function afficherBienvenuePuisOuvrir() {
@@ -353,6 +364,14 @@ function mettreAJourTexteBienvenueRole() {
     const welcomeRole = document.getElementById('welcomeRole');
     if (!welcomeRole) return;
     welcomeRole.textContent = construireTexteBienvenueRole();
+}
+
+function mettreAJourDescriptionHeroSelonRole() {
+    const heroDescription = document.getElementById('heroRoleDescription');
+    if (!heroDescription) return;
+    heroDescription.textContent = appState.role === 'admin'
+        ? 'Gérez le catalogue, les adhérents et les emprunts depuis votre espace administrateur.'
+        : 'Consultez le catalogue, réservez des livres et suivez vos emprunts depuis votre espace adhérent.';
 }
 
 function getInitials(name) {
@@ -611,6 +630,7 @@ function setRole(role, options = {}) {
     if (rolePill) rolePill.textContent = isAdmin ? 'Espace administrateur' : 'Espace adhérent';
     if (userRole) userRole.textContent = roleLabel;
     mettreAJourTexteBienvenueRole();
+    mettreAJourDescriptionHeroSelonRole();
 
     if (adminAccessBtn) adminAccessBtn.classList.toggle('hidden', isAdmin);
     if (studentBackBtn) studentBackBtn.classList.toggle('hidden', !isAdmin);
@@ -808,6 +828,11 @@ function bindModals() {
 
             ajouterOperationReservation(titre);
             ajouterReservationPourAdmin(titre);
+            publierNotificationServeur(
+                'Nouvelle réservation',
+                `${appState.currentUser?.name || 'Un adhérent'} a réservé: ${titre}.`,
+                'alerte'
+            );
             showToast('Réservation confirmée', `${titre} est réservé en attente de retour.`);
             closeModal('bookDetail');
         });
@@ -836,7 +861,9 @@ function bindModals() {
                 return;
             }
 
-            ajouterNotificationLocale('Demande d\'emprunt', `${appState.currentUser?.name || 'Un étudiant'} a demandé: ${titre}.`);
+            const messageDemande = `${appState.currentUser?.name || 'Un adhérent'} a demandé un emprunt: ${titre}.`;
+            ajouterNotificationLocale('Demande d\'emprunt', messageDemande);
+            publierNotificationServeur('Demande d\'emprunt', messageDemande, 'info');
             showToast('Demande envoyée', `${titre} a été ajouté aux emprunts à valider.`);
             closeModal('bookDetail');
         });
@@ -908,8 +935,9 @@ async function verifyAdminAccess() {
 
     if (!identifier || !password || !code) return;
 
+    let data = null;
     try {
-        await apiJson(`${API_BASE}/verifier_acces_admin.php`, {
+        data = await apiJson(`${API_BASE}/verifier_acces_admin.php`, {
             method: 'POST',
             body: JSON.stringify({
                 identifiant_admin: identifier.value.trim(),
@@ -922,7 +950,17 @@ async function verifyAdminAccess() {
         return;
     }
 
+    const admin = data?.administrateur || null;
+    if (admin) {
+        appState.currentUser = {
+            ...(appState.currentUser || {}),
+            name: String(admin.nom_complet || appState.currentUser?.name || 'Administrateur'),
+            email: String(admin.email || appState.currentUser?.email || ''),
+            roleNom: 'administrateur'
+        };
+    }
     setRole('admin');
+    updateUserIdentity();
     closeModal('adminVerify');
     identifier.value = '';
     password.value = '';
@@ -1083,7 +1121,7 @@ async function submitLoan() {
     }
     closeModal('loan');
     const nomEtudiant = student.options[student.selectedIndex]?.text.split('—')[0].trim() || 'Étudiant';
-    ajouterNotificationLocale('Nouvel emprunt', `${nomEtudiant} a emprunté: ${titreLivre}.`);
+    chargerNotificationsDepuisApi({ silent: true });
     showToast('Emprunt enregistré', `${nomEtudiant} - ${titreLivre}`);
 }
 
@@ -1102,14 +1140,13 @@ async function submitStudent() {
     if (!fullNameEl || !codeEl || !emailEl || !passwordEl || !deptEl || !levelEl || !memberTypeEl) return;
 
     const nom = fullNameEl.value.trim();
-    const matricule = codeEl.value.trim().toUpperCase();
     const email = emailEl.value.trim().toLowerCase();
     const motDePasse = passwordEl.value;
     const filiere = deptEl.value.trim();
     const niveau = levelEl.value.trim();
     const typeAdherent = memberTypeEl.value === 'enseignant' ? 'enseignant' : 'etudiant';
 
-    if (!nom || !matricule || !email || !motDePasse || !filiere || !niveau) {
+    if (!nom || !email || !motDePasse || !filiere || !niveau) {
         showToast('Adhérent', 'Tous les champs du formulaire sont obligatoires.');
         return;
     }
@@ -1120,12 +1157,12 @@ async function submitStudent() {
         return;
     }
 
+    let reponse = null;
     try {
-        await apiJson(`${API_BASE}/etudiants_ajouter.php`, {
+        reponse = await apiJson(`${API_BASE}/etudiants_ajouter.php`, {
             method: 'POST',
             body: JSON.stringify({
                 nom_complet: nom,
-                matricule,
                 email,
                 mot_de_passe: motDePasse,
                 filiere,
@@ -1138,9 +1175,10 @@ async function submitStudent() {
         return;
     }
 
-    [fullNameEl, codeEl, emailEl, passwordEl, deptEl, levelEl].forEach(el => {
+    [fullNameEl, emailEl, passwordEl, deptEl, levelEl].forEach(el => {
         el.value = '';
     });
+    if (codeEl) codeEl.value = 'Auto-généré';
     memberTypeEl.value = 'etudiant';
 
     await chargerEtudiantsDepuisApi();
@@ -1148,7 +1186,8 @@ async function submitStudent() {
     const typeLabel = typeAdherent === 'enseignant' ? 'Enseignant' : 'Étudiant';
     ajouterNotificationLocale('Inscription validée', `${nom} est maintenant inscrit comme ${typeLabel.toLowerCase()}.`);
     ajouterNotificationLocale('Adhérent ajouté', `${typeLabel} ajouté: ${nom}.`);
-    showToast('Adhérent ajouté', `${nom} a été ajouté avec succès.`);
+    const matriculeCree = reponse?.etudiant?.matricule || 'auto-généré';
+    showToast('Adhérent ajouté', `${nom} ajouté (${matriculeCree}).`);
 }
 
 // Ajoute un livre au catalogue en base de données.
@@ -1389,31 +1428,36 @@ function bindActions() {
 
     const markAllReadBtn = document.getElementById('markAllReadBtn');
     if (markAllReadBtn) {
-        markAllReadBtn.addEventListener('click', () => {
+        markAllReadBtn.addEventListener('click', async () => {
+            if (!ensureAdminAction()) return;
             const avant = appState.notifications.filter(notification => !notification.lue).length;
             if (avant === 0) return;
-            appState.notifications = appState.notifications.map(notification => ({ ...notification, lue: true }));
-            synchroniserEtatNotifications();
-            showToast('Notifications', 'Toutes les notifications ont été marquées comme lues.');
+            try {
+                await apiJson(`${API_BASE}/notifications_tout_lu.php`, { method: 'POST' });
+                await chargerNotificationsDepuisApi({ silent: true });
+                showToast('Notifications', 'Toutes les notifications ont été marquées comme lues.');
+            } catch (error) {
+                showToast('Notifications', error.message || 'Impossible de mettre à jour les notifications.');
+            }
         });
     }
 
-    document.addEventListener('click', event => {
+    document.addEventListener('click', async event => {
         const markBtn = event.target.closest('[data-mark-read]');
         if (!markBtn) return;
+        if (!ensureAdminAction()) return;
         const id = String(markBtn.getAttribute('data-mark-read') || '').trim();
         if (!id) return;
-
-        let modifie = false;
-        appState.notifications = appState.notifications.map(notification => {
-            if (notification.id !== id || notification.lue) return notification;
-            modifie = true;
-            return { ...notification, lue: true };
-        });
-        if (!modifie) return;
-
-        synchroniserEtatNotifications();
-        showToast('Notification', 'Notification marquée comme lue.');
+        try {
+            await apiJson(`${API_BASE}/notifications_marquer_lue.php`, {
+                method: 'POST',
+                body: JSON.stringify({ notification_id: Number(id) })
+            });
+            await chargerNotificationsDepuisApi({ silent: true });
+            showToast('Notification', 'Notification marquée comme lue.');
+        } catch (error) {
+            showToast('Notification', error.message || 'Impossible de marquer la notification.');
+        }
     });
 }
 
@@ -1430,9 +1474,12 @@ function renderNotifications() {
 
     list.innerHTML = appState.notifications.map(notification => {
         const unreadClass = notification.lue ? '' : ' unread';
+        const peutMarquer = appState.role === 'admin';
         const action = notification.lue
             ? '<span class="status-pill retourne">Lu</span>'
-            : `<button class="btn-secondary" data-mark-read="${echapperHtml(notification.id)}">Marquer lu</button>`;
+            : (peutMarquer
+                ? `<button class="btn-secondary" data-mark-read="${echapperHtml(notification.id)}">Marquer lu</button>`
+                : '<span class="status-pill en-cours">Non lu</span>');
         return `<div class="notification-item${unreadClass}"><div><strong>${echapperHtml(notification.title)}</strong><p>${echapperHtml(notification.message)}</p></div>${action}</div>`;
     }).join('');
 
@@ -1469,6 +1516,35 @@ function enregistrerNotificationsPersistantes() {
     localStorage.setItem(STORAGE_NOTIFICATIONS_KEY, JSON.stringify(appState.notifications || []));
 }
 
+function sessionUtilisateurActive() {
+    return Boolean(appState.currentUser && appState.currentUser.email);
+}
+
+function normaliserNotificationServeur(notification) {
+    return {
+        id: String(notification.id || genererIdOperation()),
+        title: String(notification.titre || notification.title || 'Notification'),
+        message: String(notification.message || ''),
+        lue: Boolean(Number(notification.est_lue ?? notification.lue ?? 0)),
+        type: String(notification.type || 'info')
+    };
+}
+
+async function chargerNotificationsDepuisApi(options = {}) {
+    if (!sessionUtilisateurActive()) return;
+    const silent = Boolean(options.silent);
+    try {
+        const data = await apiJson(`${API_BASE}/notifications_lister.php`, { method: 'GET' });
+        const notifications = Array.isArray(data.notifications) ? data.notifications : [];
+        appState.notifications = notifications.map(normaliserNotificationServeur);
+        synchroniserEtatNotifications();
+    } catch (error) {
+        if (!silent) {
+            showToast('Notifications', error.message || 'Impossible de charger les notifications.');
+        }
+    }
+}
+
 function synchroniserEtatNotifications() {
     appState.unreadNotifications = appState.notifications.filter(notification => !notification.lue).length;
     enregistrerNotificationsPersistantes();
@@ -1482,9 +1558,39 @@ function ajouterNotificationLocale(title, message) {
         message: String(message || ''),
         lue: false
     };
+    if (!sessionUtilisateurActive()) {
+        appState.notifications = [notification, ...(appState.notifications || [])].slice(0, 50);
+        synchroniserEtatNotifications();
+        return;
+    }
 
-    appState.notifications = [notification, ...(appState.notifications || [])].slice(0, 50);
-    synchroniserEtatNotifications();
+    apiJson(`${API_BASE}/notifications_creer.php`, {
+        method: 'POST',
+        body: JSON.stringify({
+            titre: notification.title,
+            message: notification.message,
+            type: 'info'
+        })
+    })
+        .then(() => chargerNotificationsDepuisApi({ silent: true }))
+        .catch(() => {
+            appState.notifications = [notification, ...(appState.notifications || [])].slice(0, 50);
+            synchroniserEtatNotifications();
+        });
+}
+
+function publierNotificationServeur(titre, message, type = 'info') {
+    if (!sessionUtilisateurActive()) return;
+    apiJson(`${API_BASE}/notifications_creer.php`, {
+        method: 'POST',
+        body: JSON.stringify({
+            titre: String(titre || 'Notification'),
+            message: String(message || ''),
+            type: String(type || 'info')
+        })
+    })
+        .then(() => chargerNotificationsDepuisApi({ silent: true }))
+        .catch(() => {});
 }
 
 function updateNotificationBadge() {
@@ -1547,13 +1653,14 @@ function updateDashboardKpis(options = {}) {
     const emprunts = Array.isArray(appState.emprunts) ? appState.emprunts : [];
 
     const totalLivres = livres.length;
-    const totalEtudiants = etudiants.length;
     const totalEnseignants = etudiants.filter(etudiant => {
         const roleNom = normaliserTexte(etudiant?.role_nom || '');
         if (roleNom.includes('enseign')) return true;
         const niveau = normaliserTexte(etudiant?.niveau || '');
         return niveau.includes('enseign');
     }).length;
+    const totalAdherents = etudiants.length;
+    const totalEtudiants = Math.max(0, totalAdherents - totalEnseignants);
     const totalEmprunts = emprunts.length;
     const totalCategories = new Set(
         livres
@@ -1596,7 +1703,7 @@ function updateDashboardKpis(options = {}) {
     const heroLoansCount = document.getElementById('heroLoansCount');
     const heroCategoriesCount = document.getElementById('heroCategoriesCount');
     if (heroBooksCount) heroBooksCount.textContent = totalLivres.toLocaleString('fr-FR');
-    if (heroStudentsCount) heroStudentsCount.textContent = totalEtudiants.toLocaleString('fr-FR');
+    if (heroStudentsCount) heroStudentsCount.textContent = totalAdherents.toLocaleString('fr-FR');
     if (heroLoansCount) heroLoansCount.textContent = totalEmprunts.toLocaleString('fr-FR');
     if (heroCategoriesCount) heroCategoriesCount.textContent = totalCategories.toLocaleString('fr-FR');
 
@@ -1849,33 +1956,7 @@ function setDefaultDates() {
 }
 
 function initialiserCatalogueLivres() {
-    appState.livresCatalogue = [
-        { id: 1, isbn: '978-0321573513', titre: "Introduction à l'algorithmique", auteur: 'Thomas H. Cormen', categorie: 'informatique', editeur: 'Pearson', annee: 2022, stock: 4, emplacement: 'RAYON A1', description: 'Référence majeure pour les structures de données et algorithmes.', image: 'https://picsum.photos/seed/book-1/220/320' },
-        { id: 2, isbn: '978-0201616224', titre: 'The Pragmatic Programmer', auteur: 'Andrew Hunt', categorie: 'informatique', editeur: 'Addison-Wesley', annee: 2019, stock: 3, emplacement: 'RAYON A2', description: 'Bonnes pratiques de développement logiciel professionnel.', image: 'https://picsum.photos/seed/book-2/220/320' },
-        { id: 3, isbn: '978-1492052203', titre: 'Designing Data-Intensive Applications', auteur: 'Martin Kleppmann', categorie: 'informatique', editeur: "O'Reilly", annee: 2021, stock: 2, emplacement: 'RAYON A3', description: 'Conception de systèmes distribués et gestion des données.', image: 'https://picsum.photos/seed/book-3/220/320' },
-        { id: 4, isbn: '978-0262033848', titre: 'Artificial Intelligence: A Modern Approach', auteur: 'Stuart Russell', categorie: 'informatique', editeur: 'Pearson', annee: 2020, stock: 1, emplacement: 'RAYON A4', description: 'Panorama complet des approches IA modernes.', image: 'https://picsum.photos/seed/book-4/220/320' },
-
-        { id: 5, isbn: '978-2200615215', titre: 'Analyse mathématique', auteur: 'Jean-Michel Monier', categorie: 'mathematiques', editeur: 'Dunod', annee: 2018, stock: 5, emplacement: 'RAYON M1', description: 'Cours et exercices sur limites, intégrales et séries.', image: 'https://picsum.photos/seed/book-5/220/320' },
-        { id: 6, isbn: '978-2100584123', titre: 'Algèbre linéaire appliquée', auteur: 'Gilbert Strang', categorie: 'mathematiques', editeur: 'Masson', annee: 2017, stock: 2, emplacement: 'RAYON M2', description: 'Fondamentaux de l’algèbre linéaire et applications numériques.', image: 'https://picsum.photos/seed/book-6/220/320' },
-        { id: 7, isbn: '978-2047300831', titre: 'Probabilités et statistiques', auteur: 'Sheldon Ross', categorie: 'mathematiques', editeur: 'Armand Colin', annee: 2020, stock: 3, emplacement: 'RAYON M3', description: 'Modèles probabilistes et méthodes statistiques.', image: 'https://picsum.photos/seed/book-7/220/320' },
-
-        { id: 8, isbn: '978-2100801350', titre: 'Physique quantique', auteur: 'Richard Feynman', categorie: 'physique', editeur: 'Ellipses', annee: 2019, stock: 0, emplacement: 'RAYON P1', description: 'Concepts avancés de mécanique quantique.', image: 'https://picsum.photos/seed/book-8/220/320' },
-        { id: 9, isbn: '978-2100746996', titre: 'Mécanique classique', auteur: 'Herbert Goldstein', categorie: 'physique', editeur: 'Dunod', annee: 2016, stock: 2, emplacement: 'RAYON P2', description: 'Principes de dynamique et formulations lagrangiennes.', image: 'https://picsum.photos/seed/book-9/220/320' },
-        { id: 10, isbn: '978-2729895785', titre: 'Électromagnétisme', auteur: 'David J. Griffiths', categorie: 'physique', editeur: 'De Boeck', annee: 2018, stock: 1, emplacement: 'RAYON P3', description: 'Théorie électromagnétique et exercices corrigés.', image: 'https://picsum.photos/seed/book-10/220/320' },
-
-        { id: 11, isbn: '978-2100797844', titre: 'Chimie organique moderne', auteur: 'Linus Pauling', categorie: 'sciences', editeur: 'Dunod', annee: 2017, stock: 4, emplacement: 'RAYON S1', description: 'Réactivité et mécanismes de la chimie organique.', image: 'https://picsum.photos/seed/book-11/220/320' },
-        { id: 12, isbn: '978-2807303072', titre: 'Biologie cellulaire', auteur: 'Alberts', categorie: 'sciences', editeur: 'Flammarion', annee: 2021, stock: 2, emplacement: 'RAYON S2', description: 'Structure et fonctionnement de la cellule.', image: 'https://picsum.photos/seed/book-12/220/320' },
-        { id: 13, isbn: '978-2100789443', titre: 'Sciences de la Terre', auteur: 'Jean Dercourt', categorie: 'sciences', editeur: 'Dunod', annee: 2019, stock: 3, emplacement: 'RAYON S3', description: 'Géologie, tectonique et ressources terrestres.', image: 'https://picsum.photos/seed/book-13/220/320' },
-
-        { id: 14, isbn: '978-2070409226', titre: 'Les Misérables', auteur: 'Victor Hugo', categorie: 'litterature', editeur: 'Gallimard', annee: 2015, stock: 2, emplacement: 'RAYON L1', description: 'Roman majeur du XIXe siècle.', image: 'https://picsum.photos/seed/book-14/220/320' },
-        { id: 15, isbn: '978-2070413117', titre: 'Madame Bovary', auteur: 'Gustave Flaubert', categorie: 'litterature', editeur: 'Folio', annee: 2014, stock: 3, emplacement: 'RAYON L2', description: 'Classique de la littérature réaliste française.', image: 'https://picsum.photos/seed/book-15/220/320' },
-        { id: 16, isbn: '978-2253002864', titre: 'L’Étranger', auteur: 'Albert Camus', categorie: 'litterature', editeur: 'Le Livre de Poche', annee: 2013, stock: 5, emplacement: 'RAYON L3', description: 'Roman existentiel incontournable.', image: 'https://picsum.photos/seed/book-16/220/320' },
-
-        { id: 17, isbn: '978-2757852972', titre: 'Histoire de France', auteur: 'Georges Duby', categorie: 'histoire', editeur: 'Points', annee: 2018, stock: 2, emplacement: 'RAYON H1', description: 'Synthèse des grandes périodes de l’histoire de France.', image: 'https://picsum.photos/seed/book-17/220/320' },
-        { id: 18, isbn: '978-2213675070', titre: 'Histoire de l’Afrique contemporaine', auteur: 'Catherine Coquery-Vidrovitch', categorie: 'histoire', editeur: 'Fayard', annee: 2020, stock: 4, emplacement: 'RAYON H2', description: 'Repères historiques sur les dynamiques africaines récentes.', image: 'https://picsum.photos/seed/book-18/220/320' },
-        { id: 19, isbn: '978-2130786931', titre: 'Civilisations antiques', auteur: 'Paul Veyne', categorie: 'histoire', editeur: 'PUF', annee: 2017, stock: 1, emplacement: 'RAYON H3', description: 'Études comparées des sociétés antiques.', image: 'https://picsum.photos/seed/book-19/220/320' },
-        { id: 20, isbn: '978-2253252610', titre: 'Histoire du XXe siècle', auteur: 'Eric Hobsbawm', categorie: 'histoire', editeur: 'LGF', annee: 2016, stock: 3, emplacement: 'RAYON H4', description: 'Analyse globale du court XXe siècle.', image: 'https://picsum.photos/seed/book-20/220/320' }
-    ];
+    appState.livresCatalogue = [];
 
     renderSelectLivresPourEmprunt();
     updateDashboardKpis({ animate: false });
@@ -1945,9 +2026,7 @@ function renderCategoriesDashboard() {
 function afficherCatalogueLivresDisponiblesBase() {
     const livresDisponiblesBase = (Array.isArray(appState.livresCatalogueBdd) ? appState.livresCatalogueBdd : [])
         .filter(livre => Number(livre.stock) > 0);
-    const fallbackCatalogue = (Array.isArray(appState.livresCatalogue) ? appState.livresCatalogue : [])
-        .filter(livre => Number(livre.stock) > 0);
-    const livresAAfficher = livresDisponiblesBase.length ? livresDisponiblesBase : fallbackCatalogue;
+    const livresAAfficher = livresDisponiblesBase;
 
     appState.rechercheLivre = '';
     appState.filtreCategorie = 'tous';
@@ -1965,7 +2044,7 @@ function afficherCatalogueLivresDisponiblesBase() {
         'Catalogue',
         livresDisponiblesBase.length
             ? `Livres disponibles en base: ${livresDisponiblesBase.length}`
-            : `Base vide, affichage du catalogue local: ${fallbackCatalogue.length}`
+            : 'Aucun livre disponible en base.'
     );
 }
 
@@ -2555,39 +2634,7 @@ async function apiJson(url, options = {}) {
 
 function initialiserOperationsEtudiant() {
     if (!appState.currentUser || appState.operationsEtudiant.length > 0) return;
-
-    const aujourdHui = new Date();
-    const hier = new Date(aujourdHui);
-    hier.setDate(aujourdHui.getDate() - 1);
-    const ilYA10Jours = new Date(aujourdHui);
-    ilYA10Jours.setDate(aujourdHui.getDate() - 10);
-    const ilYA2Jours = new Date(aujourdHui);
-    ilYA2Jours.setDate(aujourdHui.getDate() - 2);
-    const dans2Jours = new Date(aujourdHui);
-    dans2Jours.setDate(aujourdHui.getDate() + 2);
-
-    appState.operationsEtudiant = [
-        {
-            id: genererIdOperation(),
-            livre: "Introduction à l'algorithmique",
-            statut: 'emprunte',
-            jourReservation: formaterIso(ilYA10Jours),
-            jourRecuperation: formaterIso(ilYA10Jours),
-            dateEmprunt: formaterIso(ilYA10Jours),
-            dateRetourPrevue: formaterIso(ilYA2Jours),
-            dateRetourEffective: null
-        },
-        {
-            id: genererIdOperation(),
-            livre: 'Mathématiques pour l\'informatique',
-            statut: 'reserve',
-            jourReservation: formaterIso(hier),
-            jourRecuperation: formaterIso(dans2Jours),
-            dateEmprunt: null,
-            dateRetourPrevue: null,
-            dateRetourEffective: null
-        }
-    ];
+    appState.operationsEtudiant = [];
 }
 
 function ajouterOperationReservation(livre) {

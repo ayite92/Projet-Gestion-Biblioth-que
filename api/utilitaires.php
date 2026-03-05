@@ -169,3 +169,31 @@ function idRoleParNom(PDO $pdo, string $nomRole): ?int
 
     return $role ? (int) $role['id'] : null;
 }
+
+function estErreurDoublon(Throwable $e): bool
+{
+    if (!$e instanceof PDOException) {
+        return false;
+    }
+
+    $sqlState = (string) ($e->errorInfo[0] ?? $e->getCode() ?? '');
+    return $sqlState === '23000';
+}
+
+function genererMatriculeAdherent(PDO $pdo, string $typeAdherent, int $offset = 0): string
+{
+    $prefixe = $typeAdherent === 'enseignant' ? 'ENS' : 'ETU';
+    $annee = date('Y');
+    $regex = sprintf('^%s-%s-[0-9]{6}$', $prefixe, $annee);
+
+    $stmt = $pdo->prepare(
+        "SELECT MAX(CAST(SUBSTRING_INDEX(matricule, '-', -1) AS UNSIGNED)) AS dernier_numero
+         FROM etudiants
+         WHERE matricule REGEXP :regex"
+    );
+    $stmt->execute(['regex' => $regex]);
+    $dernierNumero = (int) ($stmt->fetchColumn() ?: 0);
+    $prochainNumero = $dernierNumero + 1 + max(0, $offset);
+
+    return sprintf('%s-%s-%06d', $prefixe, $annee, $prochainNumero);
+}

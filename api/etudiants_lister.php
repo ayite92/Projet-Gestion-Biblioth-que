@@ -8,7 +8,10 @@ $utilisateur = exigerConnexion();
 
 $pdo = obtenirConnexionBdd();
 
-if (accesAdministrateurValide()) {
+$roleNom = mb_strtolower((string) ($utilisateur['role_nom'] ?? ''));
+$estCompteAdmin = $roleNom === 'administrateur';
+
+if (accesAdministrateurValide() || $estCompteAdmin) {
     $stmt = $pdo->query(
         'SELECT e.id, e.matricule, e.filiere, e.niveau, e.date_inscription, e.statut,
                 u.id AS utilisateur_id, u.nom_complet, u.email, r.nom AS role_nom,
@@ -23,7 +26,8 @@ if (accesAdministrateurValide()) {
          ORDER BY u.nom_complet ASC'
     );
 
-    envoyerJson(['ok' => true, 'mode' => 'admin', 'etudiants' => $stmt->fetchAll()]);
+    $mode = accesAdministrateurValide() ? 'admin' : 'admin_lecture';
+    envoyerJson(['ok' => true, 'mode' => $mode, 'etudiants' => $stmt->fetchAll()]);
 }
 
 $stmt = $pdo->prepare(

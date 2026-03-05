@@ -9,20 +9,24 @@ exigerAccesAdministrateur();
 $donnees = lireCorpsJson();
 
 $nomComplet = trim((string) ($donnees['nom_complet'] ?? ''));
-$matricule = strtoupper(trim((string) ($donnees['matricule'] ?? '')));
 $email = mb_strtolower(trim((string) ($donnees['email'] ?? '')));
 $motDePasse = (string) ($donnees['mot_de_passe'] ?? '');
+$emailBanni = 'email.bibliotheque@esgis.org';
 $filiere = trim((string) ($donnees['filiere'] ?? ''));
 $niveau = trim((string) ($donnees['niveau'] ?? ''));
 $typeAdherent = trim((string) ($donnees['type_adherent'] ?? 'etudiant'));
 $typeAdherent = in_array($typeAdherent, ['etudiant', 'enseignant'], true) ? $typeAdherent : 'etudiant';
 
-if ($nomComplet === '' || $matricule === '' || $email === '' || $motDePasse === '' || $filiere === '' || $niveau === '') {
+if ($nomComplet === '' || $email === '' || $motDePasse === '' || $filiere === '' || $niveau === '') {
     envoyerJson(['ok' => false, 'message' => 'Tous les champs étudiant sont requis.'], 422);
 }
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     envoyerJson(['ok' => false, 'message' => 'Email étudiant invalide.'], 422);
+}
+
+if ($email === $emailBanni) {
+    envoyerJson(['ok' => false, 'message' => 'Cette adresse email est bloquée.'], 422);
 }
 
 $pdo = obtenirConnexionBdd();
@@ -46,13 +50,6 @@ $adminId = (int) ($_SESSION['admin_utilisateur_id'] ?? $utilisateur['id']);
 
 $pdo->beginTransaction();
 try {
-    $stmtMatricule = $pdo->prepare('SELECT id FROM etudiants WHERE matricule = :matricule LIMIT 1');
-    $stmtMatricule->execute(['matricule' => $matricule]);
-    $existantMatricule = $stmtMatricule->fetch();
-    if ($existantMatricule) {
-        envoyerJson(['ok' => false, 'message' => 'Ce matricule existe déjà.'], 409);
-    }
-
     $stmtUtilisateur = $pdo->prepare('SELECT id FROM utilisateurs WHERE email = :email LIMIT 1');
     $stmtUtilisateur->execute(['email' => $email]);
     $existantUtilisateur = $stmtUtilisateur->fetch();
@@ -84,19 +81,55 @@ try {
         $utilisateurId = (int) $pdo->lastInsertId();
     }
 
+    $stmtProfilExistant = $pdo->prepare('SELECT id, matricule FROM etudiants WHERE utilisateur_id = :utilisateur_id LIMIT 1');
+    $stmtProfilExistant->execute(['utilisateur_id' => $utilisateurId]);
+    $profilExistant = $stmtProfilExistant->fetch();
+    if ($profilExistant) {
+        throw new RuntimeException('Cet utilisateur possède déjà un profil adhérent.');
+    }
+
     $stmtInsertEtudiant = $pdo->prepare(
         'INSERT INTO etudiants (utilisateur_id, matricule, filiere, niveau, date_inscription, statut)
          VALUES (:utilisateur_id, :matricule, :filiere, :niveau, CURDATE(), :statut)'
     );
-    $stmtInsertEtudiant->execute([
-        'utilisateur_id' => $utilisateurId,
-        'matricule' => $matricule,
-        'filiere' => $filiere,
-        'niveau' => $niveau,
-        'statut' => 'actif',
-    ]);
+
+    $matricule = '';
+    $matriculeInsere = false;
+    for ($tentative = 0; $tentative < 5; $tentative++) {
+        $matriculeCandidat = genererMatriculeAdherent($pdo, $typeAdherent, $tentative);
+        try {
+            $stmtInsertEtudiant->execute([
+                'utilisateur_id' => $utilisateurId,
+                'matricule' => $matriculeCandidat,
+                'filiere' => $filiere,
+                'niveau' => $niveau,
+                'statut' => 'actif',
+            ]);
+            $matricule = $matriculeCandidat;
+            $matriculeInsere = true;
+            break;
+        } catch (Throwable $e) {
+            if (!estErreurDoublon($e)) {
+                throw $e;
+            }
+        }
+    }
+
+    if (!$matriculeInsere) {
+        throw new RuntimeException('Impossible de générer un matricule unique.');
+    }
 
     $etudiantId = (int) $pdo->lastInsertId();
+
+    $stmtNotif = $pdo->prepare(
+        'INSERT INTO notifications (utilisateur_id, titre, message, type, est_lue)
+         VALUES (NULL, :titre, :message, :type, 0)'
+    );
+    $stmtNotif->execute([
+        'titre' => 'Adhérent ajouté',
+        'message' => sprintf('%s ajouté: %s.', $typeAdherent === 'enseignant' ? 'Enseignant' : 'Étudiant', $nomComplet),
+        'type' => 'succes',
+    ]);
 
     enregistrerJournalAudit('ajout_etudiant', 'etudiants', $etudiantId, 'Ajout étudiant par administrateur', $adminId);
 
@@ -119,5 +152,8 @@ try {
     ], 201);
 } catch (Throwable $e) {
     $pdo->rollBack();
+    if ($e instanceof RuntimeException) {
+        envoyerJson(['ok' => false, 'message' => $e->getMessage()], 409);
+    }
     envoyerJson(['ok' => false, 'message' => 'Impossible d\'ajouter l\'étudiant.', 'erreur' => $e->getMessage()], 500);
 }
